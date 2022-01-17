@@ -9,14 +9,14 @@ public class AlwaysLookAtCamera : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        cameraToLookAt = GameObject.Find("OVRCameraRig");
+        cameraToLookAt = GameObject.Find("PlayerFighter");
     }
 
     void Update()
     {
         if (cameraToLookAt == null) return;
 
-        transform.LookAt(cameraToLookAt.transform.position);
-        this.transform.rotation = Quaternion.Inverse(cameraToLookAt.transform.rotation);
+        transform.LookAt(cameraToLookAt.transform);
+        this.transform.rotation = cameraToLookAt.transform.rotation;
     }
 }

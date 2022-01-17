@@ -40,7 +40,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1064473373859338796}
-  m_Enabled: 0
+  m_Enabled: 1
   m_CastShadows: 0
   m_ReceiveShadows: 0
   m_DynamicOccludee: 1
@@ -236,7 +236,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4d4318f6baed76e42876f9c55af53539, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  Speed: 1
   TorpedoPrefab: {fileID: 9143504448154490047, guid: 5db55522b351b0b479097f896508c5a6, type: 3}
 --- !u!1 &2741068090541136369
 GameObject:

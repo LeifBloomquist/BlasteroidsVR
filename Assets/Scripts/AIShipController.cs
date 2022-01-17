@@ -3,33 +3,39 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class AIShipController : MonoBehaviour
+public class AIShipController : ShipCommon
 {
-    private Rigidbody rb;
     private GameObject player;
-    private DateTime lastshot_fired;
 
     private TextMesh debugText;
 
-    public float Speed = 1;
-    public GameObject TorpedoPrefab;
+    // Some parameters to give this enemy a bit of variation
+    private float my_acceleration = 1f;
+    private float my_angular_acceleration = 1f;
+    private float my_attack_range = 200f;
+
+    private Vector3 last_player_direction;
 
     private enum State
     {
-     //   Searching,
-        Approaching,
+        Stopping,
+        Chasing,
         Attacking,
-  //      Fleeing
+        Fleeing
     }
 
-    private State myState = State.Approaching;
+    private State my_state = State.Chasing;
 
     // Start is called before the first frame update
     void Start()
     {
-        Speed = UnityEngine.Random.Range(0.1f, 1.0f);
+        base.Start();
 
-        rb = this.GetComponent<Rigidbody>();
+        // Add some variation
+      //  my_acceleration = UnityEngine.Random.Range(0.5f, 2.0f);
+        my_angular_acceleration = UnityEngine.Random.Range(0.5f, 2.0f);
+        my_attack_range = UnityEngine.Random.Range(50f, 300f);
+
         player = GameObject.Find("PlayerFighter");
         debugText = this.transform.Find("DebugText").GetComponent<TextMesh>();
     }
@@ -37,14 +43,16 @@ public class AIShipController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        base.Update();
+
         // Determine which direction to rotate towards
-        Vector3 targetDirection = player.transform.position - this.transform.position;
-        float distance = targetDirection.magnitude;
-        float angle = Vector3.Angle(targetDirection, transform.forward);
+        Vector3 player_direction = player.transform.position - this.transform.position;
+        float player_distance = player_direction.magnitude;
+        float player_angle = Vector3.Angle(player_direction, transform.forward);
 
-        float rotation_speed = 0f;
+        string action = "None";
 
-        switch (myState)
+        switch (my_state)
         {
            /* case State.Searching:
 
@@ -63,86 +71,86 @@ public class AIShipController : MonoBehaviour
                 break;
            */
 
-            case State.Approaching:
+            case State.Chasing:
 
                 // 1. Pointing
-                rotation_speed = 1.5f;
+                RotateTowardsTarget(player, my_angular_acceleration * 2f);
 
                 // 2. Acceleration
-                rb.AddForce(this.transform.forward * Speed * (distance - 100) / 1000f);
+
+                Vector3 direction_delta = player_direction - last_player_direction;
+
+                float desired_velocity = 100; // (player_distance / 100);
+                float current_velocity = rb.velocity.magnitude;
+                float delta_velocity = current_velocity - desired_velocity;
+
+                if (delta_velocity > 0) // Too fast
+                {
+                    ApplyBrakes(delta_velocity / 10);
+                    action = "Braking " + (delta_velocity / 10).ToString("F1");
+                }
+                else // Too slow
+                {
+                    Accelerate(-delta_velocity);
+                    action = "Accelerating " + (delta_velocity / 10).ToString("F1");
+                }               
 
                 // 3. State Changes
-                if (distance < 100)
+                if (player_distance <= my_attack_range)
                 {
-             //        myState = State.Attacking;
+                     my_state = State.Attacking;
                 }
 
-                if (distance > 1000)
+                if (player_distance >= 1000)
                 {
-            //        myState = State.Searching;
+                    // myState = State.Stopping;
                 }
 
                 break;
 
-                /*
+                
             case State.Attacking:
 
-                // 1. Pointing
-                rotation_speed = 0.8f;
+                action = "Attacking ";
 
-                // 2. Acceleration
-                rb.AddForce(-this.transform.forward * 1.5f);  // "Brakes" - Note -ve
+                // 1. Pointing
+                RotateTowardsTarget(player, my_angular_acceleration * 0.4f);
+
+                // 2. Acceleration (Stop)
+                ApplyBrakes(0.5f);
 
                 // 3. State Changes
-
-                if (distance > 110)
+                if (player_distance > my_attack_range)
                 {
-                    myState = State.Approaching; 
-                }
-
-                if (angle > 10)
-                {
-                   // myState = State.Searching;
+                    my_state = State.Chasing; 
                 }
 
                 // TODO, fleeing
 
                 break;
-                */
-
         }
 
         // Take a shot in any state
 
-        if ((angle < 0.4f) && (distance < 200f))
+        if ((player_angle < 0.4f) && (player_distance < my_attack_range))
         {
-            TimeSpan interval = DateTime.Now - lastshot_fired;
-
-            if (interval.TotalMilliseconds > 500)
-            {
-                FireATorpedo();
-            }
+            FireATorpedo();
         }
 
+        // Remember last direction
+        last_player_direction = last_player_direction;
 
+        ShowDebug("State = " + my_state.ToString() + "\nDistance = " + player_distance.ToString("F1") + "\n" + action + "\nAngle = " + player_angle.ToString("F1"), 0.07f); // player_distance/400f);
+    }
+
+    void RotateTowardsTarget(GameObject target, float rotation_rate)
+    {
         // Calculate a rotation a step closer to the target and applies rotation to this object
-        float singleStep = rotation_speed * Time.deltaTime;
+        Vector3 targetDirection = target.transform.position - this.transform.position;
+        float singleStep = rotation_rate * Time.deltaTime;
         Vector3 newDirection = Vector3.RotateTowards(transform.forward, targetDirection, singleStep, 0.0f);
         transform.rotation = Quaternion.LookRotation(newDirection);
-
-        ShowDebug("State = " + myState.ToString() + "\nDistance = " + distance.ToString("F1") + "\nAngle = " + angle.ToString("F3"), distance/400f);
     }
-
-    void FireATorpedo()
-    {
-        GameObject torpedo = Instantiate(TorpedoPrefab, this.transform.position + (this.transform.forward * 10), this.transform.rotation);
-        torpedo.transform.SetParent(null);
-        Rigidbody rbt = torpedo.GetComponent<Rigidbody>();
-        rbt.AddForce(this.transform.forward * 100);
-
-        lastshot_fired = DateTime.Now;
-    }
-
 
     void ShowDebug(string text, float size)
     {

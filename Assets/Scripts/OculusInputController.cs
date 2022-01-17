@@ -2,9 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class OculusInputController : MonoBehaviour
+public class OculusInputController : ShipCommon
 {
-    private Rigidbody rb;
     private AudioSource thruster;
     private AudioSource trim;
     private AudioSource laser;
@@ -13,12 +12,12 @@ public class OculusInputController : MonoBehaviour
 
     public float acceleration = 1;
     public float torque = 1;
-    public GameObject TorpedoPrefab;
 
     // Start is called before the first frame update
     void Start()
     {
-        rb = this.GetComponent<Rigidbody>();
+        base.Start();
+
         thruster = GameObject.Find("Thruster").GetComponent<AudioSource>();
         thruster_col = GameObject.Find("Thruster").GetComponent<Renderer>().material.color;
         trim = GameObject.Find("TrimControl").GetComponent<AudioSource>();
@@ -28,6 +27,7 @@ public class OculusInputController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        base.Update();
         OVRInput.Update();
 
         // Spacecraft pointing
@@ -43,21 +43,25 @@ public class OculusInputController : MonoBehaviour
         thruster.volume = thrust;
         thruster_col.a = 1 - thrust;
 
-        // Brakes
+        // Brakes and Slow Rotation
         bool brakes = OVRInput.Get(OVRInput.Button.One);
         if (brakes)
         {
-            rb.AddTorque(-rb.angularVelocity * 5);
-            rb.AddForce(-rb.velocity * 5);
+            ApplyBrakes(5);
+            SlowRotation(8);
         }
 
-        // Slow rotation
+        // Always Slow rotation, faster if button is pressed
         bool brakes2 = OVRInput.Get(OVRInput.Button.Two);
         if (brakes2)
         {
-            rb.AddTorque(-rb.angularVelocity * 10);
+            SlowRotation(10);
         }
-
+        else
+        {
+            SlowRotation(3);
+        }
+ 
         // Weapon
         float trigger = OVRInput.Get(OVRInput.Axis1D.SecondaryIndexTrigger);
         bool fire = trigger > 0.8;
@@ -66,22 +70,16 @@ public class OculusInputController : MonoBehaviour
         {
             if (!laser_fired)
             { 
-                FireATorpedo();
-                laser.Play();
-                laser_fired = true;
+                if (FireATorpedo())
+                {
+                    laser.Play();
+                    laser_fired = true;
+                }
             }
         }
         else
         {
             laser_fired = false;
         }
-    }
-
-    void FireATorpedo()
-    {
-        GameObject torpedo = Instantiate(TorpedoPrefab, this.transform.position + (this.transform.forward * 10), this.transform.rotation);
-        torpedo.transform.SetParent(null);
-        Rigidbody rbt = torpedo.GetComponent<Rigidbody>();
-        rbt.AddForce(this.transform.forward * 100);
     }
 }
